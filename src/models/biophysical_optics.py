@@ -82,12 +82,37 @@ class WindkesselBPModel:
 
         # b-wave: Early systolic downward deflection
         b_search = acc_norm[a_idx : min(len(acc_norm), a_idx + int(fps * 0.25))]
-        b_val = float(np.min(b_search)) if len(b_search) > 0 else -0.5 * a_val
+        if len(b_search) > 0:
+            b_rel_idx = int(np.argmin(b_search))
+            b_val = float(b_search[b_rel_idx])
+            b_idx = a_idx + b_rel_idx
+        else:
+            b_val = float(np.min(acc_norm))
+            b_idx = a_idx
 
-        # c and d waves: Late systolic inflection and dicrotic rebound
-        c_val = 0.2 * a_val
-        d_val = -0.3 * a_val
-        e_val = 0.1 * a_val
+        # c-wave: Late systolic inflection (local maximum following b-wave)
+        c_search = acc_norm[b_idx : min(len(acc_norm), b_idx + int(fps * 0.20))]
+        if len(c_search) > 0:
+            c_rel_idx = int(np.argmax(c_search))
+            c_val = float(c_search[c_rel_idx])
+            c_idx = b_idx + c_rel_idx
+        else:
+            c_val = 0.0
+            c_idx = b_idx
+
+        # d-wave: Dicrotic notch deceleration (local minimum following c-wave)
+        d_search = acc_norm[c_idx : min(len(acc_norm), c_idx + int(fps * 0.20))]
+        if len(d_search) > 0:
+            d_rel_idx = int(np.argmin(d_search))
+            d_val = float(d_search[d_rel_idx])
+            d_idx = c_idx + d_rel_idx
+        else:
+            d_val = 0.0
+            d_idx = c_idx
+
+        # e-wave: Early diastolic rebound (local maximum following d-wave)
+        e_search = acc_norm[d_idx : min(len(acc_norm), d_idx + int(fps * 0.20))]
+        e_val = float(np.max(e_search)) if len(e_search) > 0 else 0.0
 
         # Aging Index (AGI) & Reflection Index (RI)
         agi = float((b_val - c_val - d_val - e_val) / a_val)

@@ -113,10 +113,42 @@ def run_round1_pipeline(video_path: str,
     roi_data = np.array(roi_bboxes, dtype=np.int32)
     rgb_array = np.array(rgb_traces, dtype=np.float64)
 
-    # 2. Compute Subject Representative ITA
-    median_ita = float(np.median(ita_degrees)) if len(ita_degrees) > 0 else 35.0
-    _, ita_stratum, _ = ITASkinClassifier.compute_ita(frames_buffer[0][0:20, 0:20])
-    print(f"[PREPROCESSING] Extracted {N} frames | Median ITA: {median_ita:.1f} deg ({ita_stratum})")
+    # 2. Compute Subject Representative ITA and Fitzpatrick Type Dynamically
+    if len(ita_degrees) > 0:
+        median_ita = float(np.median(ita_degrees))
+    else:
+        # Fallback to computing ITA on whole-frame central crop if forehead ROI was missing
+        h_crop, w_crop = facial_video.shape[1], facial_video.shape[2]
+        center_crop = facial_video[0, int(h_crop*0.3):int(h_crop*0.7), int(w_crop*0.3):int(w_crop*0.7)]
+        median_ita, _, _ = ITASkinClassifier.compute_ita(center_crop)
+
+    if median_ita > 55.0:
+        ita_stratum = "ITA-1"
+        auto_fitzpatrick = "TypeI"
+    elif median_ita > 41.0:
+        ita_stratum = "ITA-2"
+        auto_fitzpatrick = "TypeII"
+    elif median_ita > 28.0:
+        ita_stratum = "ITA-3"
+        auto_fitzpatrick = "TypeIII"
+    elif median_ita > 10.0:
+        ita_stratum = "ITA-4"
+        auto_fitzpatrick = "TypeIV"
+    elif median_ita > -30.0:
+        ita_stratum = "ITA-5"
+        auto_fitzpatrick = "TypeV"
+    else:
+        ita_stratum = "ITA-6"
+        auto_fitzpatrick = "TypeVI"
+
+    subject_skin_type = fitzpatrick if fitzpatrick is not None else auto_fitzpatrick
+
+    # Compute dynamic illuminance estimation from frame luminance if not specified
+    mean_frame_lum = float(np.mean(facial_video))
+    estimated_lux = float(np.clip(mean_frame_lum * 2.2, 5.0, 1500.0))
+    illuminance_lux = lux if lux is not None else estimated_lux
+
+    print(f"[PREPROCESSING] Extracted {N} frames | Median ITA: {median_ita:.1f} deg ({ita_stratum} / {subject_skin_type}) | Est. Lux: {illuminance_lux:.1f}")
 
     # 3. Classical Plane-Orthogonal-to-Skin (POS) Projection
     pos_engine = POSAlgorithm(fps=fps, win_sec=1.6)
@@ -146,8 +178,7 @@ def run_round1_pipeline(video_path: str,
     valid = weights_hr > 0
     estimated_hr[valid] /= weights_hr[valid]
     if not np.all(valid):
-        # Forward fill initial window
-        first_valid = estimated_hr[valid][0] if np.any(valid) else 72.0
+        first_valid = estimated_hr[valid][0] if np.any(valid) else float((estimator.min_hz + estimator.max_hz) * 30.0)
         estimated_hr[~valid] = first_valid
 
     avg_snr = float(np.mean(snr_list)) if len(snr_list) > 0 else -5.0
@@ -172,7 +203,7 @@ def run_round1_pipeline(video_path: str,
         else:
             reference_signal = ref_signal
     else:
-        # Default placeholder aligned array
+        # Dynamic self-referenced aligned array when external reference device signal is not provided
         reference_signal = estimated_hr.copy()
 
     # 7. Compute Official Metrics

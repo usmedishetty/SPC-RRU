@@ -24,10 +24,16 @@ class HarmonicCombEstimator:
         """
         N = len(signal)
         if N < int(self.fps * 2.0):
-            # Under minimum length (less than 2 seconds)
+            # Under minimum length (less than 2 seconds): compute dynamic zero-crossing rate if available
+            zero_crossings = np.where(np.diff(np.signbit(signal)))[0]
+            if len(zero_crossings) > 1:
+                duration_sec = max(1e-3, float(N) / self.fps)
+                freq_est = float(np.clip(len(zero_crossings) / (2.0 * duration_sec), self.min_hz, self.max_hz))
+            else:
+                freq_est = float((self.min_hz + self.max_hz) / 2.0)
             return {
-                "hr_bpm": 72.0,
-                "freq_hz": 1.2,
+                "hr_bpm": float(freq_est * 60.0),
+                "freq_hz": freq_est,
                 "snr_db": -10.0,
                 "confidence": 0.1,
                 "psd_freqs": np.array([]),
@@ -50,9 +56,10 @@ class HarmonicCombEstimator:
         band_psd = psd[in_band]
 
         if len(band_psd) == 0 or np.all(band_psd == 0):
+            center_hz = float((self.min_hz + self.max_hz) / 2.0)
             return {
-                "hr_bpm": 72.0,
-                "freq_hz": 1.2,
+                "hr_bpm": float(center_hz * 60.0),
+                "freq_hz": center_hz,
                 "snr_db": -10.0,
                 "confidence": 0.0,
                 "psd_freqs": freqs,

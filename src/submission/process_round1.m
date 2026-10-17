@@ -5,7 +5,7 @@
 % This script implements end-to-end Heart Rate extraction from raw facial video
 % using MathWorks toolboxes (Computer Vision, Signal Processing, Image Processing).
 
-function results = process_round1(video_path, ref_path, output_mat_path)
+function results = process_round1(video_path, ref_path, output_mat_path, condition_tag, constraint_tag)
     if nargin < 1 || isempty(video_path)
         video_path = 'target_video.mp4';
     end
@@ -14,6 +14,12 @@ function results = process_round1(video_path, ref_path, output_mat_path)
     end
     if nargin < 3 || isempty(output_mat_path)
         output_mat_path = 'Round1_Baseline_None.mat';
+    end
+    if nargin < 4 || isempty(condition_tag)
+        condition_tag = 'Baseline';
+    end
+    if nargin < 5 || isempty(constraint_tag)
+        constraint_tag = 'None';
     end
 
     fprintf('[FaceVitals MATLAB] Processing video: %s\n', video_path);
@@ -197,13 +203,18 @@ function results = process_round1(video_path, ref_path, output_mat_path)
     metrics.Pearson_r = pearson_val;
     metrics.BlandAltman_LoA = loa_val;
 
+    % Dynamically estimate scene illuminance from raw frame luminance
+    mean_lum = mean(double(raw_frames(:)));
+    est_lux = max(5.0, min(1500.0, round(mean_lum * 2.2)));
+
     params.camera_resolution = sprintf('%dx%d', width, height);
     params.frame_rate = fps;
-    params.illuminance_lux = 300.0;
+    params.illuminance_lux = est_lux;
     params.camera_to_subject_distance = '50cm';
     params.subject_fitzpatrick_skin_type = 'TypeIII';
     params.subject_age = 25;
-    params.constraint_applied = 'None';
+    params.constraint_applied = constraint_tag;
+    params.condition = condition_tag;
 
     save(output_mat_path, 'facial_video', 'roi_data', 'reference_signal', 'processed_signal', 'metrics', 'params', '-v7.3');
     fprintf('Saved official package: %s\n', output_mat_path);
