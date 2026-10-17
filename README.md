@@ -617,28 +617,28 @@ The risk matrix details probability (P), severity (S), leading indicators, mitig
 FaceVitals_Core/
 ├── config/
 │   ├── baseline_config.yaml
-│   └── stress_c1_c2_c4_c5.yaml
+│   └── stress_c1_c2_c4_c5.yaml               # $C_1, C_2, C_4, C_5$
 ├── src/
 │   ├── acquisition/
 │   │   ├── stream_reader.py
 │   │   └── metadata_logger.py
 │   ├── preprocessing/
 │   │   ├── face_roi_tracker.py
-│   │   ├── ita_classifier.py
-│   │   └── degradation_sim.py
+│   │   ├── ita_classifier.py                # $\text{ITA}$
+│   │   └── degradation_sim.py               # $C_1, C_4, C_5$
 │   ├── classical/
-│   │   ├── rppg_pos.py
-│   │   ├── rppg_chrom.py
-│   │   └── filter_bank.py
+│   │   ├── rppg_pos.py                      # $\mathbf{S}_{\text{POS}}$
+│   │   ├── rppg_chrom.py                    # $\text{CHROM}$
+│   │   └── filter_bank.py                   # $[0.7, 3.0]\,\text{Hz}$
 │   ├── models/
-│   │   ├── physnet_lite.py
-│   │   ├── multi_task_heads.py
-│   │   └── group_dro_loss.py
+│   │   ├── physnet_lite.py                  # $\approx 0.85\,\text{M}$
+│   │   ├── multi_task_heads.py              # $\text{HR}$, $\text{SpO}_2$, $\text{BP}$
+│   │   └── group_dro_loss.py                # $q_g$
 │   ├── fusion/
-│   │   ├── sqi_engine.py
-│   │   └── dynamic_arbiter.py
+│   │   ├── sqi_engine.py                    # $\text{SQI}$
+│   │   └── dynamic_arbiter.py               # $\alpha(\text{SQI})$, $\beta$
 │   └── evaluation/
-│       ├── metrics_bland_altman.py
+│       ├── metrics_bland_altman.py          # $\text{MAE}$, $\text{RMSE}$, $r$
 │       ├── bootstrap_ci.py
 │       └── mat_export_validator.py
 ├── scripts/
